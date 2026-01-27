@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { Zap } from 'lucide-react';
 import { PortInput } from './components/PortInput';
 import { SearchButton } from './components/SearchButton';
 import { ProcessPanel } from './components/ProcessPanel';
@@ -112,7 +113,7 @@ function App() {
       if (result.success && result.data.killed) {
         showFeedback(
           'success',
-          '✅ Puerto liberado correctamente',
+          'Puerto liberado correctamente',
           `El proceso fue terminado exitosamente`
         );
 
@@ -120,7 +121,6 @@ function App() {
         setScanResult(null);
         setPortValue('');
       } else if (!result.success && result.error && result.message) {
-        // result.success es false, por lo tanto tenemos acceso a error, message, suggestion
         showFeedback(
           errorTypeToFeedbackType(result.error),
           result.message,
@@ -148,15 +148,18 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-900 p-6">
+    <div className="min-h-screen bg-dark-900 p-6 selection:bg-primary-500/30">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-dark-50 mb-2">
-            ⚡ PortKiller Desktop
+        <header className="text-center mb-10 animate-fade-in">
+          <div className="inline-flex items-center justify-center p-3 mb-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 shadow-lg shadow-primary-500/5">
+            <Zap className="h-8 w-8 text-primary-500 fill-primary-500/20" />
+          </div>
+          <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">
+            PortKiller <span className="text-primary-500">Desktop</span>
           </h1>
-          <p className="text-dark-400">
-            Encuentra y elimina procesos que usan puertos específicos
+          <p className="text-dark-400 text-lg max-w-md mx-auto leading-relaxed">
+            Localiza y termina procesos que bloquean tus puertos de desarrollo en segundos.
           </p>
         </header>
 
