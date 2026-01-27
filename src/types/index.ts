@@ -17,6 +17,8 @@ export interface ProcessInfo {
   path: string;
   command: string;
   user?: string;
+  framework?: string;
+  isDocker?: boolean;
 }
 
 export interface PortScanResult {

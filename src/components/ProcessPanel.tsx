@@ -1,4 +1,4 @@
-import { Activity, Hash, Folder, Terminal, User, Globe } from 'lucide-react';
+import { Activity, Hash, Folder, Terminal, User, Globe, Box, Cpu } from 'lucide-react';
 import type { ProcessInfo } from '../types';
 
 interface ProcessPanelProps {
@@ -37,14 +37,26 @@ export function ProcessPanel({ port, process }: ProcessPanelProps) {
           </div>
           <h2 className="text-xl font-bold text-dark-50">Puerto en Uso</h2>
         </div>
-        <span className="bg-success-500/10 text-success-500 text-xs font-bold px-2.5 py-1 rounded-full border border-success-500/20">
-          ACTIVO
-        </span>
+        <div className="flex items-center gap-2">
+            {process.isDocker && (
+                <span className="bg-blue-500/10 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                    <Box className="w-3 h-3" /> DOCKER
+                </span>
+            )}
+            <span className="bg-success-500/10 text-success-500 text-[10px] font-bold px-2 py-0.5 rounded border border-success-500/20">
+                ACTIVO
+            </span>
+        </div>
       </div>
 
       <div className="p-6 space-y-1">
         <InfoRow label="Puerto" value={port} icon={Globe} />
         <InfoRow label="Proceso" value={process.name} icon={Activity} />
+        
+        {process.framework && (
+             <InfoRow label="Framework" value={process.framework} icon={Cpu} />
+        )}
+
         <InfoRow label="PID" value={process.pid} icon={Hash} />
         
         {process.path && (

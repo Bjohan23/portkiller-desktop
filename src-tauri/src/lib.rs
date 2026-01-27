@@ -22,6 +22,9 @@ struct ProcessInfo {
     path: String,
     command: String,
     user: Option<String>,
+    framework: Option<String>,
+    #[serde(rename = "isDocker")]
+    is_docker: bool,
 }
 
 /// Resultado de matar un proceso
@@ -100,36 +103,62 @@ fn find_pid_by_port(port: u16) -> Option<u32> {
 }
 
 /**
+ * Detecta el framework basado en el comando y nombre del proceso
+ */
+fn detect_framework(name: &str, command: &str) -> (Option<String>, bool) {
+    let cmd_lower = command.to_lowercase();
+    let name_lower = name.to_lowercase();
+    
+    let is_docker = cmd_lower.contains("docker") || name_lower.contains("docker");
+    
+    let framework = if cmd_lower.contains("node") || cmd_lower.contains("npm") || cmd_lower.contains("yarn") {
+        Some("Node.js".to_string())
+    } else if cmd_lower.contains("java") || cmd_lower.contains("jar") {
+        Some("Java".to_string())
+    } else if cmd_lower.contains("python") || cmd_lower.contains("pip") {
+        Some("Python".to_string())
+    } else if cmd_lower.contains("dotnet") || name_lower.contains("dotnet") {
+        Some(".NET".to_string())
+    } else if cmd_lower.contains("go ") || name_lower.contains("go-build") {
+        Some("Go".to_string())
+    } else if cmd_lower.contains("php") {
+        Some("PHP".to_string())
+    } else if is_docker {
+        Some("Docker Container".to_string())
+    } else {
+        None
+    };
+
+    (framework, is_docker)
+}
+
+/**
  * Obtiene información del proceso desde el PID
  */
-fn get_process_info(pid: u32) -> Option<ProcessInfo> {
-    let mut sys = System::new();
-    // sysinfo 0.32 requires ProcessesToUpdate and update_all parameters
-    sys.refresh_processes_specifics(
-        sysinfo::ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::everything()
-    );
+fn get_process_info(pid: u32, sys: &System) -> Option<ProcessInfo> {
+    let pid_sys = Pid::from_u32(pid);
+    let process = sys.process(pid_sys)?;
 
-    let pid = Pid::from_u32(pid);
-    let process = sys.process(pid)?;
-
-    // Convert OsString command to String properly
     let command = process.cmd()
         .iter()
         .map(|s| s.to_string_lossy().to_string())
         .collect::<Vec<String>>()
         .join(" ");
 
+    let name = process.name().to_string_lossy().to_string();
+    let (framework, is_docker) = detect_framework(&name, &command);
+
     Some(ProcessInfo {
-        name: process.name().to_string_lossy().to_string(),
-        pid: pid.as_u32(),
+        name,
+        pid,
         path: process.exe()
             .and_then(|p| p.to_str())
             .unwrap_or("")
             .to_string(),
         command,
         user: process.user_id().map(|uid| uid.to_string()),
+        framework,
+        is_docker,
     })
 }
 
@@ -138,7 +167,6 @@ fn get_process_info(pid: u32) -> Option<ProcessInfo> {
  */
 #[tauri::command]
 async fn find_port(port: u16) -> Result<OperationResponse<PortScanResult>, String> {
-    // Validar puerto
     if port == 0 {
         return Ok(OperationResponse {
             success: false,
@@ -149,11 +177,16 @@ async fn find_port(port: u16) -> Result<OperationResponse<PortScanResult>, Strin
         });
     }
 
-    // Buscar proceso usando el puerto
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::everything()
+    );
+
     match find_pid_by_port(port) {
         Some(pid) => {
-            // Puerto en uso, obtener información del proceso
-            match get_process_info(pid) {
+            match get_process_info(pid, &sys) {
                 Some(process_info) => Ok(OperationResponse {
                     success: true,
                     data: Some(PortScanResult {
@@ -179,7 +212,6 @@ async fn find_port(port: u16) -> Result<OperationResponse<PortScanResult>, Strin
             }
         }
         None => {
-            // Puerto libre
             Ok(OperationResponse {
                 success: true,
                 data: Some(PortScanResult {
@@ -193,6 +225,42 @@ async fn find_port(port: u16) -> Result<OperationResponse<PortScanResult>, Strin
             })
         }
     }
+}
+
+/**
+ * Comando Tauri para detectar procesos en puertos comunes
+ */
+#[tauri::command]
+async fn detect_common_ports() -> Result<OperationResponse<Vec<PortScanResult>>, String> {
+    let common_ports = vec![3000, 3001, 3306, 5173, 5432, 6379, 8000, 8080, 9229];
+    let mut results = Vec::new();
+    
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::everything()
+    );
+
+    for port in common_ports {
+        if let Some(pid) = find_pid_by_port(port) {
+            if let Some(process_info) = get_process_info(pid, &sys) {
+                results.push(PortScanResult {
+                    port,
+                    in_use: true,
+                    process: Some(process_info),
+                });
+            }
+        }
+    }
+
+    Ok(OperationResponse {
+        success: true,
+        data: Some(results),
+        error: None,
+        message: None,
+        suggestion: None,
+    })
 }
 
 /**
@@ -247,10 +315,8 @@ fn kill_process_by_pid(pid: u32) -> Result<(), String> {
  */
 #[tauri::command]
 async fn kill_port(port: u16) -> Result<OperationResponse<KillProcessResult>, String> {
-    // Primero encontrar el PID
     match find_pid_by_port(port) {
         Some(pid) => {
-            // Intentar matar el proceso
             match kill_process_by_pid(pid) {
                 Ok(()) => Ok(OperationResponse {
                     success: true,
@@ -303,9 +369,10 @@ async fn kill_port(port: u16) -> Result<OperationResponse<KillProcessResult>, St
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![find_port, kill_port])
+        .invoke_handler(tauri::generate_handler![find_port, kill_port, detect_common_ports])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

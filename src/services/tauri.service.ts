@@ -57,3 +57,21 @@ export async function killPort(
     };
   }
 }
+
+/**
+ * Detecta procesos en puertos de desarrollo comunes
+ * @returns Lista de resultados de escaneo
+ */
+export async function detectCommonPorts(): Promise<OperationResult<PortScanResult[]>> {
+  try {
+    const result = await invoke<OperationResult<PortScanResult[]>>('detect_common_ports');
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      error: ErrorType.UNKNOWN_ERROR,
+      message: error instanceof Error ? error.message : 'Error al escanear puertos comunes',
+      suggestion: 'Intenta nuevamente',
+    };
+  }
+}
