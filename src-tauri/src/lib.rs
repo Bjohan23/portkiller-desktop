@@ -96,9 +96,10 @@ fn find_pid_by_port(port: u16) -> Option<u32> {
             .ok()?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        stdout.trim().parse::<u32>().ok()
+        return stdout.trim().parse::<u32>().ok();
     }
 
+    #[cfg(target_os = "windows")]
     None
 }
 
