@@ -120,6 +120,33 @@ El instalador se generará en:
 - **macOS**: `.dmg` y `.app`
 - **Linux**: `.AppImage`, `.deb`
 
+## 📦 Releases Automáticos
+
+El proyecto incluye GitHub Actions para generar releases automáticamente.
+
+### Plataformas soportadas:
+- **Windows** (x64)
+- **macOS** (Intel x86_64 y Apple Silicon arm64)
+- **Linux** (x64)
+
+### Para crear un release:
+
+1. **Actualiza la versión** en `package.json` y `src-tauri/tauri.conf.json`
+
+2. **Haz commit de los cambios**
+   ```bash
+   git add .
+   git commit -m "chore: bump version to 0.1.0"
+   ```
+
+3. **Crea un tag y haz push**
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+El workflow generará automáticamente un **draft release** con los instaladores para todas las plataformas. Luego podrás revisar y publicar el release desde GitHub.
+
 ## 📖 Uso
 
 1. **Abrir la aplicación**
