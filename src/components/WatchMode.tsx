@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Bell, BellOff, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, EyeOff, BellOff, Loader2 } from 'lucide-react';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { findPort } from '../services/tauri.service';
 
@@ -34,7 +34,7 @@ export function WatchMode({ port, theme = 'dark' }: WatchModeProps) {
 
   // Lógica de monitoreo
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     if (isWatching && port > 0) {
       interval = setInterval(async () => {
